@@ -25,10 +25,19 @@ Light, airy whimsical background for a desktop memory card game, 16:9, soft pain
 - Kolor `#d7e9ec` to zmienna `--sky` z `index.html`. Dzięki niemu krawędź obrazka zlewa się z obecnym gradientem tła, gdy okno ma inne proporcje.
 - Koncept „pałacu pamięci” nawiązuje do techniki zapamiętywania; pary identycznych przedmiotów na półkach to mrugnięcie okiem do zasad gry.
 
-## Jak wpiąć grafikę
+## Jak grafika jest wpięta
 
-- Zapisz obrazek jako WebP i skompresuj do około 200–300 KB.
-- Wymaganie 5.1 mówi o jednym pliku `index.html`. Są dwie opcje:
-  - obrazek wstawiony jako base64 w CSS (zostaje jeden plik, ale `index.html` mocno puchnie),
-  - plik `tlo.webp` obok `index.html` (prostsze, ścieżka względna działa przy otwieraniu dwuklikiem); wtedy trzeba dopisać wyjątek w wymaganiach.
-- W CSS: `background-size: cover; background-position: center;` na `body`, z obecnym gradientem jako kolorem zapasowym.
+- Wygenerowany obraz (`natalia.png`, 1672 × 941) jest zapisany jako `tlo.webp` (około 130 KB) obok `index.html`; wyjątek od zasady jednego pliku jest opisany w `wymagania.md`.
+- Obraz leży w warstwie `.backdrop`, która skaluje się jak `cover` z wyrównaniem do dołu. Animacje w CSS (świetliki, migotanie świecy w latarence) są ustawione w procentach tej warstwy, więc trafiają w to samo miejsce obrazka przy każdym rozmiarze okna.
+
+## Prompt na animowane tło (wideo)
+
+Kota, sowy i liści nie da się sensownie animować w CSS, bo tło to jeden płaski obraz. Do tego służy generator wideo z obrazka (image-to-video, np. Runway, Kling, Pika, Veo). Wgraj `natalia.png` jako pierwszą klatkę i wklej:
+
+```
+Seamless looping animation of this exact illustration. The camera is completely static: no zoom, no pan, no camera shake. Keep every object, color, the lighting and the composition identical to the source image. Only subtle, slow, gentle motion: the sleeping cat on the floor in the bottom-left corner slowly stretches its front paws, gives one big yawn, then curls up and sleeps again; the white owl on the right bookshelf slowly turns its head to the side and back and blinks once; the ivy leaves and hanging vines sway softly as if in a light breeze; the lavender in the vase sways gently; tiny golden fireflies blink and drift slowly near the shelves; the candle flame inside the golden lantern flickers softly. The empty light-blue wall in the center and the wooden floor stay completely still and clean. No new objects, no people, no text. Duration 8–10 seconds; the last frame must match the first frame for a seamless loop.
+```
+
+Ustawienia w generatorze: proporcje 16:9, siła ruchu (motion) niska, jeśli jest opcja, ustaw ostatnią klatkę taką samą jak pierwszą (`end frame` = ten sam obraz). Pobierz MP4 w 1080p.
+
+Po wgraniu klipu do Pobranych: skompresuję go do WebM/MP4 (około 2–4 MB), podepnę w `.backdrop` jako zapętlone, wyciszone wideo z `tlo.webp` jako obrazem zastępczym i wyłączę je przy systemowym ograniczeniu ruchu.

@@ -43,14 +43,90 @@
       min-height: 100vh;
       font-family: "Grandstander", "Trebuchet MS", system-ui, sans-serif;
       color: var(--plum);
-      /* Tło przyklejone do okna, żeby przy przewijaniu do rankingu nie uciekało; gradient zostaje na czas ładowania obrazka */
-      background:
-        url("tlo.webp") center bottom / cover no-repeat fixed,
-        radial-gradient(120% 90% at 50% 0%, #eaf4f5 0%, var(--sky) 50%, var(--sky-deep) 100%) fixed;
+      /* Gradient widać do czasu załadowania ilustracji (.backdrop) */
+      background: radial-gradient(120% 90% at 50% 0%, #eaf4f5 0%, var(--sky) 50%, var(--sky-deep) 100%) fixed;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 28px 16px 48px;
+    }
+
+    /* Ilustracja tła przyklejona do okna. Skaluje się jak „cover” (wyrównanie do dołu), więc
+       świetliki i płomień ustawione w procentach trafiają zawsze w to samo miejsce obrazka 1672 × 941 */
+    .backdrop {
+      position: fixed;
+      z-index: -1;
+      left: 50%;
+      bottom: 0;
+      width: max(100vw, calc(100vh * 1672 / 941));
+      aspect-ratio: 1672 / 941;
+      transform: translateX(-50%);
+      background: url("tlo.webp") center / 100% 100% no-repeat;
+      pointer-events: none;
+    }
+
+    .backdrop span {
+      position: absolute;
+      translate: -50% -50%;
+    }
+
+    .candle-glow,
+    .flame { mix-blend-mode: screen; }
+
+    /* Blask i płomień świecy w latarence (punkt 405 × 776 na obrazku) */
+    .candle-glow {
+      left: 24.22%;
+      top: 81.6%;
+      width: 7%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 196, 110, 0.5), rgba(255, 190, 100, 0) 65%);
+      animation: candle-glow 2.3s ease-in-out infinite;
+    }
+
+    .flame {
+      left: 24.22%;
+      top: 82.2%;
+      width: 0.6%;
+      aspect-ratio: 1 / 2;
+      border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%;
+      background: radial-gradient(ellipse at 50% 72%, #fffbea 0%, #ffd56a 45%, rgba(255, 170, 60, 0) 78%);
+      transform-origin: 50% 90%;
+      animation: flame 1.7s ease-in-out infinite;
+    }
+
+    /* Świetliki: rozbłysk, przygaśnięcie i lekki dryf; każdy ma własne miejsce, tempo i opóźnienie */
+    .firefly {
+      left: var(--x);
+      top: var(--y);
+      width: 0.42%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      /* Na jasnej ścianie rozjaśnianie (screen) prawie nie działa, więc świetlik ma własny złoty kolor i poświatę */
+      background: radial-gradient(circle, #fffdf0 0 25%, #ffd866 55%, #f5b83d 100%);
+      box-shadow: 0 0 0.35vw 0.2vw rgba(255, 196, 70, 0.55), 0 0 1.1vw 0.4vw rgba(255, 210, 110, 0.3);
+      opacity: 0;
+      animation: firefly var(--dur) ease-in-out var(--delay) infinite;
+    }
+
+    @keyframes candle-glow {
+      0%, 100% { opacity: 0.75; }
+      30%      { opacity: 1; }
+      55%      { opacity: 0.6; }
+      80%      { opacity: 0.9; }
+    }
+    @keyframes flame {
+      0%, 100% { transform: scale(1, 1) skewX(0deg); }
+      20%      { transform: scale(0.9, 1.1) skewX(4deg); }
+      45%      { transform: scale(1.06, 0.94) skewX(-3deg); }
+      70%      { transform: scale(0.95, 1.12) skewX(2deg); }
+    }
+    @keyframes firefly {
+      0%        { opacity: 0; transform: translate(0, 0); }
+      12%       { opacity: 1; }
+      26%       { opacity: 0.25; }
+      40%       { opacity: 0.95; }
+      58%, 100% { opacity: 0; transform: translate(var(--dx), var(--dy)); }
     }
 
     .top {
@@ -499,7 +575,10 @@
       .card-float,
       .card-inner,
       .shadow,
-      .win-panel { animation: none !important; }
+      .win-panel,
+      .candle-glow,
+      .flame { animation: none !important; }
+      .firefly { display: none; }
       .card-inner { transition: transform var(--flip) ease-in-out; }
     }
 
@@ -519,6 +598,23 @@
   </style>
 </head>
 <body>
+  <div class="backdrop" aria-hidden="true">
+    <span class="candle-glow"></span>
+    <span class="flame"></span>
+    <span class="firefly" style="--x: 28.7%; --y: 13.3%; --dur: 7s; --delay: 0s; --dx: 160%; --dy: -220%"></span>
+    <span class="firefly" style="--x: 26.3%; --y: 31.9%; --dur: 9s; --delay: 2.5s; --dx: -140%; --dy: -180%"></span>
+    <span class="firefly" style="--x: 27.2%; --y: 67%; --dur: 8s; --delay: 5s; --dx: 200%; --dy: -160%"></span>
+    <span class="firefly" style="--x: 9.5%; --y: 47%; --dur: 10s; --delay: 1s; --dx: 180%; --dy: -260%"></span>
+    <span class="firefly" style="--x: 17%; --y: 8%; --dur: 8.5s; --delay: 6.5s; --dx: -120%; --dy: 200%"></span>
+    <span class="firefly" style="--x: 21.5%; --y: 55%; --dur: 7.5s; --delay: 3.8s; --dx: 140%; --dy: -200%"></span>
+    <span class="firefly" style="--x: 78.3%; --y: 36.7%; --dur: 8s; --delay: 1.6s; --dx: -180%; --dy: -150%"></span>
+    <span class="firefly" style="--x: 77.8%; --y: 64.8%; --dur: 9.5s; --delay: 4.2s; --dx: 160%; --dy: -220%"></span>
+    <span class="firefly" style="--x: 77.2%; --y: 73.3%; --dur: 7s; --delay: 7s; --dx: -150%; --dy: -180%"></span>
+    <span class="firefly" style="--x: 79.5%; --y: 85%; --dur: 10s; --delay: 2s; --dx: 120%; --dy: -240%"></span>
+    <span class="firefly" style="--x: 82%; --y: 10%; --dur: 8s; --delay: 5.5s; --dx: -160%; --dy: 180%"></span>
+    <span class="firefly" style="--x: 93%; --y: 52%; --dur: 9s; --delay: 0.8s; --dx: -200%; --dy: -140%"></span>
+  </div>
+
   <header class="top">
     <div>
       <h1>Para Buch!</h1>

@@ -52,7 +52,7 @@ Kryterium sukcesu: gracz może rozegrać pełną partię od pierwszego kliknięc
 - Nagłówek z nazwą gry „Para Buch!”.
 - Pasek z licznikiem „Ruchy: N” i przyciskiem „Nowa gra”.
 - Plansza: siatka 6 × 5 kart (6 kolumn, 5 wierszy) jednakowej wielkości.
-- Tło strony: ilustracja „pałacu pamięci” (`tlo.webp`) z pustym środkiem i szczegółami przy krawędziach, dopasowana do okna (`cover`) i nieprzewijająca się razem ze stroną.
+- Tło strony: ilustracja „pałacu pamięci” (`tlo.webp`) z pustym środkiem i szczegółami przy krawędziach, dopasowana do okna (`cover`) i nieprzewijająca się razem ze stroną. Na tle są delikatne animacje w CSS: migoczący płomień świecy w latarence i świetliki rozbłyskujące przy regałach. Przy systemowym ograniczeniu ruchu (`prefers-reduced-motion`) animacje są wyłączone.
 - Karta zakryta ma jednolity rewers; karta odkryta pokazuje emoji; karta znaleziona jest wizualnie odróżniona (np. przygaszona lub z obramowaniem).
 - Odwracanie karty jest animowane (obrót w osi Y, CSS `transform: rotateY` z `backface-visibility: hidden`), czas animacji około 0,3 s.
 - Komunikat o wygranej wyświetlany nad planszą lub jako nakładka, z przyciskiem „Zagraj ponownie”.
