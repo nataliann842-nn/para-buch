@@ -39,7 +39,10 @@
       min-height: 100vh;
       font-family: "Grandstander", "Trebuchet MS", system-ui, sans-serif;
       color: var(--plum);
-      background: radial-gradient(120% 90% at 50% 0%, #eaf4f5 0%, var(--sky) 50%, var(--sky-deep) 100%);
+      /* Tło przyklejone do okna, żeby przy przewijaniu do rankingu nie uciekało; gradient zostaje na czas ładowania obrazka */
+      background:
+        url("tlo.webp") center bottom / cover no-repeat fixed,
+        radial-gradient(120% 90% at 50% 0%, #eaf4f5 0%, var(--sky) 50%, var(--sky-deep) 100%) fixed;
       display: flex;
       flex-direction: column;
       align-items: center;

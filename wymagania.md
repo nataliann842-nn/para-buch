@@ -52,6 +52,7 @@ Kryterium sukcesu: gracz może rozegrać pełną partię od pierwszego kliknięc
 - Nagłówek z nazwą gry „Para Buch!”.
 - Pasek z licznikiem „Ruchy: N” i przyciskiem „Nowa gra”.
 - Plansza: siatka 6 × 5 kart (6 kolumn, 5 wierszy) jednakowej wielkości.
+- Tło strony: ilustracja „pałacu pamięci” (`tlo.webp`) z pustym środkiem i szczegółami przy krawędziach, dopasowana do okna (`cover`) i nieprzewijająca się razem ze stroną.
 - Karta zakryta ma jednolity rewers; karta odkryta pokazuje emoji; karta znaleziona jest wizualnie odróżniona (np. przygaszona lub z obramowaniem).
 - Odwracanie karty jest animowane (obrót w osi Y, CSS `transform: rotateY` z `backface-visibility: hidden`), czas animacji około 0,3 s.
 - Komunikat o wygranej wyświetlany nad planszą lub jako nakładka, z przyciskiem „Zagraj ponownie”.
@@ -70,6 +71,8 @@ Cała gra mieści się w jednym pliku `index.html`, otwieranym dwuklikiem, bez s
 5. `<script>` z testami: uruchamiany tylko przy adresie z parametrem `?test`.
 
 Schemat bazy (tabele i reguły dostępu) jest w pliku `supabase/schema.sql`.
+
+Wyjątek od zasady jednego pliku: grafika tła `tlo.webp` (około 130 KB) leży obok `index.html`, bo wklejona jako base64 dopisałaby do kodu setki KB nieczytelnego tekstu. Bez niej gra działa, a tło zastępuje gradient. Prompt, z którego powstała, jest w `prompt-tlo.md`.
 
 ### 5.2. Stan gry
 
