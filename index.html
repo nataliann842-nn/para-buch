@@ -65,7 +65,8 @@
       pointer-events: none;
     }
 
-    .backdrop span {
+    /* :where zeruje specyficzność, żeby pojedyncze elementy mogły nadpisać centrowanie */
+    :where(.backdrop span) {
       position: absolute;
       translate: -50% -50%;
     }
@@ -95,10 +96,52 @@
       animation: flame 1.7s ease-in-out infinite;
     }
 
-    /* Strumień piasku w klepsydrze: od przewężenia (punkt 345 × 424) do kupki w dolnej bańce */
+    /* Chmury płynące za oknem (lewy górny róg obrazka, 170 × 345). Maska przepuszcza tylko niebo
+       w czterech górnych szybach, więc chmury nie wchodzą na ramy, bluszcz ani zamek.
+       Maska jest wstawiona jako data:, bo zewnętrznego pliku maski przeglądarka nie wczyta przy otwarciu z dysku. */
+    .clouds {
+      left: 0;
+      top: 0;
+      width: 10.17%;
+      height: 36.66%;
+      translate: 0 0;
+      overflow: hidden;
+      --sky-mask: url("data:image/png;base64,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");
+      -webkit-mask: var(--sky-mask) 0 0 / 100% 100% no-repeat;
+      mask: var(--sky-mask) 0 0 / 100% 100% no-repeat;
+    }
+
+    /* Dwa jednakowe kafle chmur obok siebie; przesunięcie o połowę daje płynną pętlę */
+    .clouds::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 200%;
+      /* Każda chmura to kilka białych kłębów i błękitnoszary cień od spodu, który nadaje jej objętość */
+      --puff: #fff 0 42%, rgba(255, 255, 255, 0) 72%;
+      --belly: rgba(196, 212, 232, 0.85) 0 35%, rgba(196, 212, 232, 0) 75%;
+      background:
+        radial-gradient(ellipse 15% 6% at 16% 17%, var(--puff)),
+        radial-gradient(ellipse 18% 8% at 30% 14%, var(--puff)),
+        radial-gradient(ellipse 14% 6% at 43% 18%, var(--puff)),
+        radial-gradient(ellipse 34% 5% at 30% 22%, var(--belly)),
+        radial-gradient(ellipse 16% 6% at 60% 44%, var(--puff)),
+        radial-gradient(ellipse 22% 9% at 76% 40%, var(--puff)),
+        radial-gradient(ellipse 15% 6% at 92% 45%, var(--puff)),
+        radial-gradient(ellipse 40% 6% at 76% 50%, var(--belly)),
+        radial-gradient(ellipse 12% 5% at 8% 66%, var(--puff)),
+        radial-gradient(ellipse 14% 6% at 20% 63%, var(--puff)),
+        radial-gradient(ellipse 26% 4% at 15% 70%, var(--belly));
+      background-size: 50% 100%;
+      background-repeat: repeat-x;
+      opacity: 0.9;
+      animation: clouds 45s linear infinite;
+    }
+
+    /* Strumień piasku w klepsydrze: od przewężenia (punkt 345 × 413) do kupki w dolnej bańce */
     .sand {
       left: 20.66%;
-      top: 45%;
+      top: 43.9%;
       width: 0.11%;
       height: 2.2%;
       translate: -50% 0;
@@ -133,6 +176,9 @@
       20%      { transform: scale(0.9, 1.1) skewX(4deg); }
       45%      { transform: scale(1.06, 0.94) skewX(-3deg); }
       70%      { transform: scale(0.95, 1.12) skewX(2deg); }
+    }
+    @keyframes clouds {
+      to { transform: translateX(-50%); }
     }
     @keyframes sand {
       to { background-position: 0 4px; }
@@ -594,7 +640,8 @@
       .win-panel,
       .candle-glow,
       .flame,
-      .sand { animation: none !important; }
+      .sand,
+      .clouds::before { animation: none !important; }
       .firefly { display: none; }
       .card-inner { transition: transform var(--flip) ease-in-out; }
     }
@@ -616,6 +663,7 @@
 </head>
 <body>
   <div class="backdrop" aria-hidden="true">
+    <span class="clouds"></span>
     <span class="candle-glow"></span>
     <span class="flame"></span>
     <span class="sand"></span>
