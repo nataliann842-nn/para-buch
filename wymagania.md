@@ -18,7 +18,7 @@ Kryterium sukcesu: gracz może rozegrać pełną partię od pierwszego kliknięc
 - Licznik ruchów.
 - Animacja odwracania karty.
 - Przycisk „Nowa gra” i komunikat o wygranej.
-- Testy logiki uruchamiane w przeglądarce.
+- Testy logiki uruchamiane w przeglądarce oraz testy end-to-end w Playwright (sekcja 6.1).
 - Zapis w bazie Supabase (sekcja 8): konta z loginem i hasłem, wspólny ranking 10 najlepszych wyników z loginem, profil gracza oraz wznawianie przerwanej partii.
 
 ### 2.2. Poza zakresem
@@ -127,6 +127,32 @@ Minimalny zestaw przypadków:
 17. `passwordError` wymaga co najmniej 6 znaków.
 
 Testy nie łączą się z bazą; przy `?test` zapis w Supabase jest wyłączony.
+
+### 6.1. Testy end-to-end (Playwright)
+
+Drugi poziom testów klika w grę w prawdziwej przeglądarce (Chromium) tak jak gracz. Leżą w `tests/gra.spec.js`, konfiguracja w `playwright.config.js`. Gra nadal nie wymaga instalacji; Node.js i Playwright są potrzebne tylko do uruchomienia tych testów.
+
+Uruchamianie (po jednorazowym `npm install` i `npx playwright install chromium`):
+
+- `npm test`: testy lokalnego `index.html`, przed publikacją zmian.
+- `npm run test:pages`: testy wersji opublikowanej na GitHub Pages (skrypt w składni Windows). Inny adres można podać w zmiennej `APP_URL`.
+- `npm run zrzuty`: zrzuty ekranu kluczowych stanów gry do folderu `zrzuty/` (start, jedna odkryta karta, nietrafiona para, znalezione pary, wygrana).
+
+Przypadki:
+
+1. Start: 30 zakrytych kart w układzie 6 × 5, 15 symboli po dwa razy, „Ruchy: 0”, widoczny przycisk „Nowa gra”.
+2. Pierwsza odkryta karta nie zmienia licznika.
+3. Ponowne kliknięcie odkrytej karty nic nie zmienia.
+4. Trafiona para zostaje oznaczona jako znaleziona, a kliknięcie znalezionej karty nic nie zmienia.
+5. Nietrafiona para: blokada planszy, kliknięcie trzeciej karty jest ignorowane, po 0,5 s karty są jeszcze odkryte, a po około 1 s zakryte i blokada znika.
+6. „Nowa gra” w trakcie partii zeruje licznik, zakrywa karty i tasuje talię.
+7. Pełna partia (jedno pudło i 15 par) kończy się komunikatem „Brawo! Ukończono w 16 ruchach”; „Zagraj ponownie” zaczyna nową grę.
+8. Bez dostępu do bazy gra działa i nie pokazuje rankingu ani pytania o wznowienie.
+9. Wszystkie testy logiki z `index.html?test` są zaliczone.
+
+W każdym przypadku test sprawdza też, że w konsoli nie ma błędów JS. Testy odczytują symbole kart ze strony, więc działają mimo losowego ułożenia talii.
+
+Ruch do Supabase jest w testach blokowany, żeby nie zostawiały w bazie gości, partii ani wyników. Dlatego logowanie, ranking, zapis wyniku i wznawianie partii nie są objęte tymi testami; wymagałyby podstawionych odpowiedzi Supabase.
 
 ## 7. Kryteria akceptacji
 
