@@ -95,6 +95,19 @@
       animation: flame 1.7s ease-in-out infinite;
     }
 
+    /* Strumień piasku w klepsydrze: od przewężenia (punkt 345 × 424) do kupki w dolnej bańce */
+    .sand {
+      left: 20.66%;
+      top: 45%;
+      width: 0.11%;
+      height: 2.2%;
+      translate: -50% 0;
+      border-radius: 1px;
+      background: repeating-linear-gradient(to bottom, #f0e0b9 0 3px, rgba(240, 224, 185, 0.55) 3px 4px);
+      background-size: 100% 4px;
+      animation: sand 0.35s linear infinite;
+    }
+
     /* Świetliki: rozbłysk, przygaśnięcie i lekki dryf; każdy ma własne miejsce, tempo i opóźnienie */
     .firefly {
       left: var(--x);
@@ -120,6 +133,9 @@
       20%      { transform: scale(0.9, 1.1) skewX(4deg); }
       45%      { transform: scale(1.06, 0.94) skewX(-3deg); }
       70%      { transform: scale(0.95, 1.12) skewX(2deg); }
+    }
+    @keyframes sand {
+      to { background-position: 0 4px; }
     }
     @keyframes firefly {
       0%        { opacity: 0; transform: translate(0, 0); }
@@ -577,7 +593,8 @@
       .shadow,
       .win-panel,
       .candle-glow,
-      .flame { animation: none !important; }
+      .flame,
+      .sand { animation: none !important; }
       .firefly { display: none; }
       .card-inner { transition: transform var(--flip) ease-in-out; }
     }
@@ -601,6 +618,7 @@
   <div class="backdrop" aria-hidden="true">
     <span class="candle-glow"></span>
     <span class="flame"></span>
+    <span class="sand"></span>
     <span class="firefly" style="--x: 28.7%; --y: 13.3%; --dur: 7s; --delay: 0s; --dx: 160%; --dy: -220%"></span>
     <span class="firefly" style="--x: 26.3%; --y: 31.9%; --dur: 9s; --delay: 2.5s; --dx: -140%; --dy: -180%"></span>
     <span class="firefly" style="--x: 27.2%; --y: 67%; --dur: 8s; --delay: 5s; --dx: 200%; --dy: -160%"></span>
