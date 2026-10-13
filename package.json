@@ -1,0 +1,27 @@
+{
+  "name": "day3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:pages": "set APP_URL=https://nataliann842-nn.github.io/para-buch/&& playwright test",
+    "zrzuty": "node zrzuty.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nataliann842-nn/para-buch.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/nataliann842-nn/para-buch/issues"
+  },
+  "homepage": "https://github.com/nataliann842-nn/para-buch#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "playwright": "^1.64.0"
+  }
+}
