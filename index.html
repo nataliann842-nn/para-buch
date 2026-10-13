@@ -355,40 +355,90 @@
     button.action.secondary:hover { background: #fff6dd; }
     button.action:disabled { opacity: 0.6; cursor: default; }
 
-    .score-form {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
+    .score-status {
+      min-height: 1.2em;
+      max-width: 360px;
       font-size: 16px;
       font-weight: 500;
+      color: var(--plum-soft);
     }
-    .score-form[hidden] { display: none; }
+    .score-status:empty { display: none; }
 
-    .score-row {
+    button.link {
+      font: inherit;
+      font-size: inherit;
+      font-weight: 700;
+      color: var(--plum);
+      padding: 0;
+      border: none;
+      background: none;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+    button.link:focus-visible {
+      outline: 3px solid var(--marigold);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    button[hidden] { display: none; }
+
+    .account {
+      margin: 6px 0 0;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--plum-soft);
+    }
+    .account[hidden] { display: none; }
+    .account strong { color: var(--plum); }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
       display: flex;
-      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(71, 33, 95, 0.35);
+    }
+    .modal[hidden] { display: none; }
+
+    .auth-panel { min-width: 340px; }
+
+    .auth-panel label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: left;
     }
 
-    #nick {
-      width: 190px;
+    .auth-panel input {
       font: inherit;
       font-size: 17px;
+      font-weight: 500;
       color: var(--plum);
       padding: 9px 12px;
       border: 2px solid var(--cardboard);
       border-radius: 10px;
       background: #fff;
     }
-    #nick:focus-visible {
+    .auth-panel input:focus-visible {
       outline: 3px solid var(--marigold);
       outline-offset: 1px;
     }
 
-    .score-status {
-      min-height: 1.2em;
+    .field-hint {
+      font-size: 13px;
+      font-weight: 500;
       color: var(--plum-soft);
     }
+    .field-hint[hidden] { display: none; }
+
+    .auth-panel .score-status.error { color: #b3261e; }
 
     .ranking {
       width: var(--tray-w);
@@ -427,6 +477,7 @@
     }
 
     .ranking .empty {
+      column-span: all;
       list-style: none;
       margin-left: -28px;
       color: var(--plum-soft);
@@ -465,6 +516,11 @@
     <div>
       <h1>Para Buch!</h1>
       <p class="hint">Odkrywaj po dwie karty i znajdź wszystkie 15 par.</p>
+      <p class="account" id="account" hidden>
+        <span id="account-text"></span>
+        <button type="button" class="link" id="account-login">Zaloguj się</button>
+        <button type="button" class="link" id="account-logout" hidden>Wyloguj</button>
+      </p>
     </div>
     <div class="toolbar">
       <span id="moves">Ruchy: 0</span>
@@ -479,14 +535,8 @@
     <div class="win" id="win" hidden>
       <div class="win-panel">
         <span id="win-text" class="panel-title"></span>
-        <form class="score-form" id="score-form" hidden>
-          <label for="nick">Wpisz nick do rankingu</label>
-          <div class="score-row">
-            <input id="nick" maxlength="20" autocomplete="nickname" required>
-            <button type="submit" class="action" id="save-score">Zapisz wynik</button>
-          </div>
-          <span class="score-status" id="score-status" role="status"></span>
-        </form>
+        <span class="score-status" id="score-status" role="status"></span>
+        <button type="button" class="link" id="score-login" hidden>Zaloguj się, żeby zapisać wynik</button>
         <button type="button" class="action" id="play-again">Zagraj ponownie</button>
       </div>
     </div>
@@ -505,6 +555,28 @@
     <h2>Najlepsze wyniki</h2>
     <ol id="ranking-list"></ol>
   </section>
+
+  <div class="modal" id="auth-modal" hidden>
+    <form class="win-panel auth-panel" id="auth-form" novalidate>
+      <span class="panel-title" id="auth-title">Zaloguj się</span>
+      <label>
+        Login
+        <input id="auth-login" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false">
+        <span class="field-hint" id="auth-login-hint" hidden>3–20 znaków: małe litery, cyfry oraz _ . -</span>
+      </label>
+      <label>
+        Hasło
+        <input id="auth-password" type="password" autocomplete="current-password">
+        <span class="field-hint" id="auth-password-hint" hidden>Co najmniej 6 znaków. Hasła nie da się odzyskać, zapamiętaj je.</span>
+      </label>
+      <span class="score-status" id="auth-status" role="status"></span>
+      <div class="panel-buttons">
+        <button type="submit" class="action" id="auth-submit">Zaloguj</button>
+        <button type="button" class="action secondary" id="auth-cancel">Anuluj</button>
+      </div>
+      <button type="button" class="link" id="auth-switch">Nie masz konta? Załóż je</button>
+    </form>
+  </div>
 
   <!-- Logika gry: czyste funkcje, bez DOM, window i timerów -->
   <script>
@@ -606,79 +678,153 @@
       return { cards, revealed: revealed.slice(), moves: data.moves, locked: false, won: false };
     }
 
-    // Nick do rankingu: bez zbędnych spacji, najwyżej 20 znaków
-    function normalizeNick(raw) {
-      return String(raw ?? '').trim().replace(/\s+/g, ' ').slice(0, 20);
+    // Login trzymamy małymi literami, więc „Ala” i „ala” to to samo konto
+    function normalizeLogin(raw) {
+      return String(raw ?? '').trim().toLowerCase();
+    }
+
+    // Zwraca opis błędu albo pusty tekst; te same zasady sprawdza baza (supabase/schema.sql)
+    function loginError(login) {
+      return /^[a-z0-9_.-]{3,20}$/.test(login)
+        ? ''
+        : 'Login musi mieć 3–20 znaków: małe litery, cyfry oraz _ . -';
+    }
+
+    function passwordError(password) {
+      return String(password ?? '').length >= 6 ? '' : 'Hasło musi mieć co najmniej 6 znaków.';
     }
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Zapis w Supabase: przerwana partia i tabela wyników -->
+  <!-- Zapis w Supabase: konta, przerwana partia i tabela wyników -->
   <script>
     // Klucz publishable jest publiczny z założenia; dostęp ograniczają reguły RLS (supabase/schema.sql)
     const SUPABASE_URL = 'https://xylrrddyfqqctzujypqf.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_pzgajJoQ4zAjKv7o-ye0oA_aNbIkE3Z';
     const TOP_SCORES = 10;
+    // Supabase loguje e-mailem, więc login zamieniamy na techniczny adres; nikt na niego nie pisze
+    const LOGIN_EMAIL_DOMAIN = 'gracze.para-buch.pl';
+
+    const AUTH_MESSAGES = {
+      user_already_exists: 'Ten login jest już zajęty.',
+      invalid_credentials: 'Nieprawidłowy login lub hasło.',
+      weak_password: 'Hasło jest za słabe.',
+      over_request_rate_limit: 'Za dużo prób. Spróbuj za kilka minut.',
+      email_provider_disabled: 'Rejestracja jest wyłączona w ustawieniach bazy.'
+    };
 
     const store = (() => {
       let client = null;
-      let userId = null;
+      let user = null; // { id, login }; login === null oznacza gościa
       let lastSynced;
-      let nextSave;
-      let hasNext = false;
-      let saving = false;
+      let nextSave = null;
+      let flushing = null;
 
       // Zwraca zapisaną partię (albo null); przy braku konfiguracji lub błędzie gra działa bez zapisu
       async function init() {
         if (!SUPABASE_URL || !SUPABASE_KEY || !window.supabase) return null;
         try {
           client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-          let { data: { session } } = await client.auth.getSession();
-          if (!session) {
-            const { data, error } = await client.auth.signInAnonymously();
-            if (error) throw error;
-            session = data.session;
-          }
-          userId = session.user.id;
-          const { data, error } = await client.from('games').select('state').maybeSingle();
-          if (error) throw error;
-          return data ? data.state : null;
+          const { data: { session } } = await client.auth.getSession();
+          await useSession(session || await signInGuest());
+          return await loadGame();
         } catch (e) {
           console.warn('Supabase niedostępny, gra działa bez zapisu:', e.message || e);
           client = null;
+          user = null;
           return null;
         }
+      }
+
+      async function signInGuest() {
+        const { data, error } = await client.auth.signInAnonymously();
+        if (error) throw error;
+        return data.session;
+      }
+
+      async function useSession(session) {
+        let login = null;
+        if (!session.user.is_anonymous) {
+          const { data, error } = await client.from('profiles').select('login').eq('id', session.user.id).maybeSingle();
+          if (error) throw error;
+          login = data ? data.login : null;
+        }
+        user = { id: session.user.id, login };
+        lastSynced = undefined;
+      }
+
+      async function loadGame() {
+        const { data, error } = await client.from('games').select('state').eq('user_id', user.id).maybeSingle();
+        if (error) throw error;
+        return data ? data.state : null;
       }
 
       // Zapisuje partię albo ją kasuje (saved = null). W locie jest najwyżej jedno żądanie;
       // stany, które przyszły w międzyczasie, zastępuje najnowszy, więc przy szybkim klikaniu nie rośnie kolejka
       function sync(saved) {
-        if (!client) return;
+        if (!client || !user) return;
         const json = JSON.stringify(saved);
         if (json === lastSynced) return;
         lastSynced = json;
-        nextSave = saved;
-        hasNext = true;
-        if (!saving) flush();
+        nextSave = { userId: user.id, saved };
+        if (!flushing) flushing = flush();
       }
 
       async function flush() {
-        saving = true;
-        while (hasNext) {
-          const saved = nextSave;
-          hasNext = false;
+        while (nextSave) {
+          const { userId, saved } = nextSave;
+          nextSave = null;
           const { error } = saved
             ? await client.from('games').upsert({ user_id: userId, state: saved, updated_at: new Date().toISOString() })
             : await client.from('games').delete().eq('user_id', userId);
           if (error) console.warn('Nie udało się zapisać partii:', error.message);
         }
-        saving = false;
+        flushing = null;
       }
 
-      async function submitScore(nick, moves) {
-        if (!client) return false;
-        const { error } = await client.from('scores').insert({ nick, moves });
+      function authMessage(error) {
+        if (AUTH_MESSAGES[error.code]) return AUTH_MESSAGES[error.code];
+        console.warn('Błąd logowania:', error.code, error.message);
+        return 'Nie udało się. Spróbuj ponownie.';
+      }
+
+      // Rejestracja i logowanie zwracają pusty tekst przy sukcesie albo komunikat dla gracza.
+      // Przed zmianą konta czekamy na zapisy poprzedniego gracza, bo po zmianie sesji baza by je odrzuciła.
+      async function signUp(login, password) {
+        await flushing;
+        const { data, error } = await client.auth.signUp({
+          email: `${login}@${LOGIN_EMAIL_DOMAIN}`,
+          password,
+          options: { data: { login } }
+        });
+        if (error) return authMessage(error);
+        if (!data.session) return 'Konto czeka na potwierdzenie e-mail. W Supabase trzeba wyłączyć „Confirm email”.';
+        await useSession(data.session);
+        return '';
+      }
+
+      async function signIn(login, password) {
+        await flushing;
+        const { data, error } = await client.auth.signInWithPassword({
+          email: `${login}@${LOGIN_EMAIL_DOMAIN}`,
+          password
+        });
+        if (error) return authMessage(error);
+        await useSession(data.session);
+        return '';
+      }
+
+      // Po wylogowaniu gra toczy się dalej jako nowy gość
+      async function signOut() {
+        await flushing;
+        await client.auth.signOut();
+        await useSession(await signInGuest());
+      }
+
+      async function submitScore(moves) {
+        if (!client || !user || !user.login) return false;
+        const { error } = await client.from('scores').insert({ moves });
         if (error) console.warn('Nie udało się zapisać wyniku:', error.message);
         return !error;
       }
@@ -686,7 +832,7 @@
       async function topScores() {
         if (!client) return [];
         const { data, error } = await client.from('scores')
-          .select('nick, moves')
+          .select('moves, profiles(login)')
           .order('moves')
           .order('created_at')
           .limit(TOP_SCORES);
@@ -694,12 +840,28 @@
           console.warn('Nie udało się pobrać rankingu:', error.message);
           return [];
         }
-        return data;
+        return data.map(row => ({ login: row.profiles ? row.profiles.login : '?', moves: row.moves }));
+      }
+
+      // Profil gracza: liczba wygranych i najlepszy wynik
+      async function myStats() {
+        if (!client || !user || !user.login) return null;
+        const { data, count, error } = await client.from('scores')
+          .select('moves', { count: 'exact' })
+          .eq('user_id', user.id)
+          .order('moves')
+          .limit(1);
+        if (error) {
+          console.warn('Nie udało się pobrać profilu:', error.message);
+          return null;
+        }
+        return { wins: count || 0, best: data.length ? data[0].moves : null };
       }
 
       return {
-        init, sync, submitScore, topScores,
-        get enabled() { return client !== null; }
+        init, loadGame, sync, signUp, signIn, signOut, submitScore, topScores, myStats,
+        get enabled() { return client !== null; },
+        get login() { return user ? user.login : null; }
       };
     })();
   </script>
@@ -715,17 +877,29 @@
     const movesEl = document.getElementById('moves');
     const winEl = document.getElementById('win');
     const winTextEl = document.getElementById('win-text');
-    const scoreFormEl = document.getElementById('score-form');
-    const nickEl = document.getElementById('nick');
-    const saveScoreEl = document.getElementById('save-score');
     const scoreStatusEl = document.getElementById('score-status');
+    const scoreLoginEl = document.getElementById('score-login');
     const resumeEl = document.getElementById('resume');
     const resumeTextEl = document.getElementById('resume-text');
+    const resumeNoEl = document.getElementById('resume-no');
     const rankingEl = document.getElementById('ranking');
     const rankingListEl = document.getElementById('ranking-list');
+    const accountEl = document.getElementById('account');
+    const accountTextEl = document.getElementById('account-text');
+    const accountLoginEl = document.getElementById('account-login');
+    const accountLogoutEl = document.getElementById('account-logout');
+    const authModalEl = document.getElementById('auth-modal');
+    const authFormEl = document.getElementById('auth-form');
+    const authTitleEl = document.getElementById('auth-title');
+    const authLoginEl = document.getElementById('auth-login');
+    const authPasswordEl = document.getElementById('auth-password');
+    const authLoginHintEl = document.getElementById('auth-login-hint');
+    const authPasswordHintEl = document.getElementById('auth-password-hint');
+    const authStatusEl = document.getElementById('auth-status');
+    const authSubmitEl = document.getElementById('auth-submit');
+    const authSwitchEl = document.getElementById('auth-switch');
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const TEST_MODE = new URLSearchParams(location.search).has('test');
-    const NICK_KEY = 'para-buch-nick';
 
     let state;
     let hideTimer = null;
@@ -733,6 +907,8 @@
     // Zapis startuje dopiero po decyzji o wznowieniu, żeby nie nadpisać przerwanej partii
     let persistReady = false;
     let pendingRestore = null;
+    let scoreSaved = false;
+    let authMode = 'login';
 
     function buildBoard() {
       boardEl.innerHTML = '';
@@ -780,7 +956,7 @@
       movesEl.textContent = `Ruchy: ${state.moves}`;
       winTextEl.textContent = `Brawo! Ukończono w ${state.moves} ruchach`;
       winEl.hidden = !state.won;
-      scoreFormEl.hidden = !(state.won && store.enabled);
+      scoreLoginEl.hidden = !(state.won && store.enabled && !store.login && !scoreSaved);
     }
 
     // Partia bez ruchów albo wygrana nie ma czego wznawiać, więc kasujemy zapis
@@ -795,6 +971,7 @@
       state = next;
       render();
       persist();
+      if (state.won) saveScore();
 
       if (state.locked) {
         hideTimer = setTimeout(() => {
@@ -809,8 +986,9 @@
       clearTimeout(hideTimer);
       hideTimer = null;
       state = newState;
+      scoreSaved = false;
+      scoreStatusEl.textContent = '';
       buildBoard();
-      resetScoreForm();
       render();
     }
 
@@ -825,33 +1003,138 @@
       persist();
     }
 
-    function resetScoreForm() {
-      nickEl.disabled = false;
-      saveScoreEl.disabled = false;
-      scoreStatusEl.textContent = '';
-      try {
-        nickEl.value = localStorage.getItem(NICK_KEY) || '';
-      } catch (e) {
-        nickEl.value = '';
+    // Zalogowanemu wynik zapisuje się sam po wygranej; gość może się zalogować w oknie gratulacji
+    async function saveScore() {
+      if (!store.enabled || !state.won || scoreSaved) return;
+      if (!store.login) {
+        scoreStatusEl.textContent = 'Wyniki gości nie trafiają do rankingu.';
+        render();
+        return;
+      }
+      scoreSaved = true;
+      const login = store.login;
+      scoreStatusEl.textContent = 'Zapisuję wynik…';
+      render();
+      if (await store.submitScore(state.moves)) {
+        scoreStatusEl.textContent = `Wynik zapisany na koncie ${login}!`;
+        refreshRanking();
+        refreshAccount();
+      } else {
+        scoreSaved = false;
+        scoreStatusEl.textContent = 'Nie udało się zapisać wyniku.';
+      }
+      render();
+    }
+
+    async function refreshAccount() {
+      if (!store.enabled) {
+        accountEl.hidden = true;
+        return;
+      }
+      const login = store.login;
+      accountEl.hidden = false;
+      accountLoginEl.hidden = Boolean(login);
+      accountLogoutEl.hidden = !login;
+      if (!login) {
+        accountTextEl.textContent = 'Grasz jako gość. ';
+        accountLoginEl.textContent = 'Zaloguj się albo załóż konto';
+        return;
+      }
+      accountTextEl.replaceChildren('Zalogowano: ', Object.assign(document.createElement('strong'), { textContent: login }), '. ');
+      const stats = await store.myStats();
+      if (stats && store.login === login) {
+        const best = stats.best === null ? 'brak' : `${stats.best} ${movesWord(stats.best)}`;
+        accountTextEl.append(`Wygrane: ${stats.wins}, najlepszy wynik: ${best}. `);
       }
     }
 
-    async function submitScore(event) {
+    function setAuthMode(mode) {
+      authMode = mode;
+      const register = mode === 'register';
+      authTitleEl.textContent = register ? 'Załóż konto' : 'Zaloguj się';
+      authSubmitEl.textContent = register ? 'Załóż konto' : 'Zaloguj';
+      authSwitchEl.textContent = register ? 'Masz już konto? Zaloguj się' : 'Nie masz konta? Załóż je';
+      authPasswordEl.autocomplete = register ? 'new-password' : 'current-password';
+      authLoginHintEl.hidden = !register;
+      authPasswordHintEl.hidden = !register;
+      authStatusEl.textContent = '';
+      authStatusEl.classList.remove('error');
+    }
+
+    function openAuth() {
+      setAuthMode('login');
+      authPasswordEl.value = '';
+      authSubmitEl.disabled = false;
+      authModalEl.hidden = false;
+      authLoginEl.focus();
+    }
+
+    function closeAuth() {
+      authModalEl.hidden = true;
+    }
+
+    function showAuthError(message) {
+      authStatusEl.textContent = message;
+      authStatusEl.classList.add('error');
+    }
+
+    async function submitAuth(event) {
       event.preventDefault();
-      const nick = normalizeNick(nickEl.value);
-      if (!nick) return;
-      const moves = state.moves;
-      saveScoreEl.disabled = true;
-      scoreStatusEl.textContent = 'Zapisuję…';
-      if (await store.submitScore(nick, moves)) {
-        nickEl.disabled = true;
-        scoreStatusEl.textContent = 'Wynik zapisany!';
-        try { localStorage.setItem(NICK_KEY, nick); } catch (e) { /* zapamiętanie nicku jest tylko wygodą */ }
-        refreshRanking();
-      } else {
-        saveScoreEl.disabled = false;
-        scoreStatusEl.textContent = 'Nie udało się zapisać wyniku, spróbuj ponownie.';
+      const login = normalizeLogin(authLoginEl.value);
+      const password = authPasswordEl.value;
+      const invalid = loginError(login) || passwordError(password);
+      if (invalid) {
+        showAuthError(authMode === 'register' ? invalid : 'Nieprawidłowy login lub hasło.');
+        return;
       }
+      authSubmitEl.disabled = true;
+      authStatusEl.classList.remove('error');
+      authStatusEl.textContent = authMode === 'register' ? 'Zakładam konto…' : 'Loguję…';
+      let message;
+      try {
+        message = authMode === 'register'
+          ? await store.signUp(login, password)
+          : await store.signIn(login, password);
+      } catch (e) {
+        console.warn('Błąd połączenia przy logowaniu:', e.message || e);
+        message = 'Brak połączenia z bazą. Spróbuj ponownie.';
+      }
+      authSubmitEl.disabled = false;
+      if (message) {
+        showAuthError(message);
+        return;
+      }
+      authPasswordEl.value = '';
+      closeAuth();
+      onAccountChanged();
+    }
+
+    // Po zalogowaniu: wygrana partia od razu trafia na konto, a przerwaną partię z konta można wznowić
+    async function onAccountChanged() {
+      refreshAccount();
+      if (state.won) {
+        saveScore();
+        return;
+      }
+      persistReady = false;
+      let saved = null;
+      try {
+        saved = await store.loadGame();
+      } catch (e) {
+        console.warn('Nie udało się wczytać partii z konta:', e.message || e);
+      }
+      offerResume(saved, true);
+    }
+
+    async function logout() {
+      try {
+        await store.signOut();
+      } catch (e) {
+        console.warn('Błąd przy wylogowaniu:', e.message || e);
+      }
+      refreshAccount();
+      render();
+      persist();
     }
 
     // Ranking zaczyna się od 15 ruchów, więc forma „ruch” nie występuje
@@ -864,7 +1147,7 @@
       const rows = await store.topScores();
       const items = rows.map(row => {
         const li = document.createElement('li');
-        li.textContent = `${row.nick}: `;
+        li.textContent = `${row.login}: `;
         const moves = document.createElement('span');
         moves.className = 'moves';
         moves.textContent = `${row.moves} ${movesWord(row.moves)}`;
@@ -884,12 +1167,20 @@
     function onStoreReady(saved) {
       if (!store.enabled) return;
       refreshRanking();
+      refreshAccount();
+      offerResume(saved, false);
+    }
+
+    // Pyta o wznowienie zapisanej partii; po zalogowaniu „nie” oznacza grę dalej obecną partią
+    function offerResume(saved, afterLogin) {
       const restored = restoreGame(saved);
-      if (restored && restored.moves > 0) {
+      const same = restored && JSON.stringify(restored) === JSON.stringify(restoreGame(snapshot(state)));
+      if (restored && restored.moves > 0 && !same) {
         pendingRestore = restored;
         const pairs = restored.cards.filter(c => c.matched).length / 2;
         resumeTextEl.textContent =
           `Masz przerwaną grę (ruchy: ${restored.moves}, pary: ${pairs} z ${PAIRS}). Wznowić?`;
+        resumeNoEl.textContent = afterLogin && state.moves > 0 ? 'Graj obecną' : 'Zacznij od nowa';
         resumeEl.hidden = false;
       } else {
         persistReady = true;
@@ -926,7 +1217,14 @@
     document.getElementById('play-again').addEventListener('click', startGame);
     document.getElementById('resume-yes').addEventListener('click', () => answerResume(true));
     document.getElementById('resume-no').addEventListener('click', () => answerResume(false));
-    scoreFormEl.addEventListener('submit', submitScore);
+    accountLoginEl.addEventListener('click', openAuth);
+    scoreLoginEl.addEventListener('click', openAuth);
+    accountLogoutEl.addEventListener('click', logout);
+    authFormEl.addEventListener('submit', submitAuth);
+    authSwitchEl.addEventListener('click', () => setAuthMode(authMode === 'login' ? 'register' : 'login'));
+    document.getElementById('auth-cancel').addEventListener('click', closeAuth);
+    authModalEl.addEventListener('click', event => { if (event.target === authModalEl) closeAuth(); });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !authModalEl.hidden) closeAuth(); });
 
     showGame(newGame());
     if (!TEST_MODE) store.init().then(onStoreReady);
@@ -1100,11 +1398,22 @@
           assert(restoreGame(snapshot(won)) === null, 'wygrana partia nie powinna być wznawiana');
         }],
 
-        ['normalizeNick przycina spacje i długość', () => {
-          assert(normalizeNick('  Ala   ma  kota ') === 'Ala ma kota', 'spacje nie zostały poprawione');
-          assert(normalizeNick('x'.repeat(30)).length === 20, 'nick nie został skrócony');
-          assert(normalizeNick('   ') === '', 'pusty nick powinien dać pusty tekst');
-          assert(normalizeNick(undefined) === '', 'brak nicku powinien dać pusty tekst');
+        ['normalizeLogin przycina spacje i zmienia na małe litery', () => {
+          assert(normalizeLogin('  Ala_Kot ') === 'ala_kot', `wynik: ${normalizeLogin('  Ala_Kot ')}`);
+          assert(normalizeLogin(undefined) === '', 'brak loginu powinien dać pusty tekst');
+        }],
+
+        ['loginError przepuszcza poprawne loginy i odrzuca błędne', () => {
+          ['ala', 'gracz_1', 'a.b-c', 'x'.repeat(20)].forEach(login =>
+            assert(loginError(login) === '', `odrzucono poprawny login ${login}`));
+          ['', 'ab', 'x'.repeat(21), 'ala kot', 'Ala', 'zażółć', 'ala@x'].forEach(login =>
+            assert(loginError(login) !== '', `przepuszczono błędny login "${login}"`));
+        }],
+
+        ['passwordError wymaga co najmniej 6 znaków', () => {
+          assert(passwordError('123456') === '', 'odrzucono hasło z 6 znakami');
+          assert(passwordError('12345') !== '', 'przepuszczono hasło z 5 znakami');
+          assert(passwordError(undefined) !== '', 'przepuszczono brak hasła');
         }]
       ];
 

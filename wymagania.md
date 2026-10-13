@@ -19,13 +19,13 @@ Kryterium sukcesu: gracz może rozegrać pełną partię od pierwszego kliknięc
 - Animacja odwracania karty.
 - Przycisk „Nowa gra” i komunikat o wygranej.
 - Testy logiki uruchamiane w przeglądarce.
-- Zapis w bazie Supabase (sekcja 8): wspólny ranking 10 najlepszych wyników z nickiem oraz wznawianie przerwanej partii.
+- Zapis w bazie Supabase (sekcja 8): konta z loginem i hasłem, wspólny ranking 10 najlepszych wyników z loginem, profil gracza oraz wznawianie przerwanej partii.
 
 ### 2.2. Poza zakresem
 
 - Poziomy trudności i zmiana rozmiaru planszy.
 - Stoper i pomiar czasu.
-- Konta graczy z logowaniem (gracz jest anonimowy, wznawianie działa w tej samej przeglądarce).
+- Reset i zmiana hasła, zmiana loginu, usuwanie konta przez gracza (konto nie ma prawdziwego adresu e-mail).
 - Ochrona rankingu przed fałszywymi wynikami poza regułami w bazie (sekcja 8.3).
 - Tryb dwóch graczy.
 - Tryb ciemny.
@@ -65,7 +65,7 @@ Cała gra mieści się w jednym pliku `index.html`, otwieranym dwuklikiem, bez s
 
 1. `<style>`: wygląd i animacja.
 2. `<script>` z logiką gry: czyste funkcje, bez żadnych odwołań do DOM, `window` ani timerów.
-3. `<script>` z zapisem w Supabase (obiekt `store`): logowanie anonimowe, zapis partii, ranking.
+3. `<script>` z zapisem w Supabase (obiekt `store`): gość (logowanie anonimowe), rejestracja i logowanie, zapis partii, ranking, profil.
 4. `<script>` z widokiem: rysowanie planszy na podstawie stanu, obsługa kliknięć, `setTimeout` na 1 sekundę po nietrafionej parze.
 5. `<script>` z testami: uruchamiany tylko przy adresie z parametrem `?test`.
 
@@ -93,7 +93,9 @@ Stan jest jednym obiektem, np.:
 - `hideUnmatched(state)`: zakrywa niesparowane odkryte karty i zdejmuje blokadę. Warstwa widoku wywołuje ją po 1 sekundzie.
 - `snapshot(state)`: zwraca kopię stanu do zapisu w bazie; nietrafiona para jest w niej już zakryta, a blokada zdjęta.
 - `restoreGame(data)`: odtwarza stan z zapisu. Zwraca `null`, gdy dane są uszkodzone (zła liczba kart, symbol nie występuje dokładnie dwa razy, błędne `moves` lub `revealed`) albo partia jest wygrana.
-- `normalizeNick(raw)`: przycina spacje na brzegach, skleja wielokrotne spacje i skraca nick do 20 znaków.
+- `normalizeLogin(raw)`: przycina spacje na brzegach i zamienia login na małe litery.
+- `loginError(login)`: zwraca pusty tekst dla poprawnego loginu (3–20 znaków: małe litery, cyfry, `_ . -`) albo opis błędu.
+- `passwordError(password)`: zwraca pusty tekst dla hasła z co najmniej 6 znakami albo opis błędu.
 
 Widok nie zmienia stanu inaczej niż przez te funkcje.
 
@@ -117,7 +119,9 @@ Minimalny zestaw przypadków:
 12. `snapshot` zakrywa nietrafioną parę, zdejmuje blokadę i nie zmienia stanu wejściowego.
 13. `restoreGame` odtwarza zapisaną partię, a gra toczy się po niej dalej.
 14. `restoreGame` odrzuca uszkodzone dane i wygraną partię.
-15. `normalizeNick` poprawia spacje i długość nicku.
+15. `normalizeLogin` przycina spacje i zmienia login na małe litery.
+16. `loginError` przepuszcza poprawne loginy i odrzuca za krótkie, za długie, ze spacją, wielkimi literami lub polskimi znakami.
+17. `passwordError` wymaga co najmniej 6 znaków.
 
 Testy nie łączą się z bazą; przy `?test` zapis w Supabase jest wyłączony.
 
@@ -129,26 +133,33 @@ Testy nie łączą się z bazą; przy `?test` zapis w Supabase jest wyłączony.
 - „Nowa gra” w trakcie partii daje nowe ułożenie i zeruje licznik.
 - `index.html?test` pokazuje wszystkie testy jako zaliczone.
 - W konsoli przy zwykłej grze nie ma błędów.
-- Po wygranej i zapisaniu nicku wynik pojawia się w rankingu.
-- Zamknięcie karty w trakcie partii i ponowne otwarcie gry w tej samej przeglądarce proponuje wznowienie z tym samym ułożeniem i liczbą ruchów.
+- Rejestracja loginem i hasłem loguje gracza od razu; ponowne logowanie tym samym loginem i hasłem działa także w innej przeglądarce.
+- Po wygranej zalogowanego gracza wynik sam trafia do rankingu z jego loginem, a profil pokazuje liczbę wygranych i najlepszy wynik.
+- Wynik gościa nie trafia do rankingu; okno gratulacji pozwala się zalogować i wtedy wynik zapisuje się na koncie.
+- Zamknięcie karty w trakcie partii i ponowne otwarcie gry proponuje wznowienie z tym samym ułożeniem i liczbą ruchów: gościowi w tej samej przeglądarce, zalogowanemu na dowolnym urządzeniu.
 - Bez dostępu do bazy (brak konfiguracji, brak sieci, uśpiony projekt) gra działa jak dotąd, tylko bez rankingu i wznawiania.
 
 ## 8. Zapis w bazie (Supabase)
 
-### 8.1. Gracz
+### 8.1. Gracz i konto
 
-Przy pierwszym wejściu gra loguje gracza anonimowo w Supabase. Sesja zostaje w przeglądarce, więc wznawianie działa na tym samym urządzeniu i w tej samej przeglądarce. Nick podaje się dopiero przy zapisie wyniku i jest zapamiętywany w `localStorage` jako podpowiedź na następny raz.
+- Bez logowania gracz jest gościem: gra loguje go anonimowo w Supabase, sesja zostaje w przeglądarce, więc gość wznawia partię na tym samym urządzeniu i w tej samej przeglądarce.
+- Konto zakłada się loginem i hasłem (link „Zaloguj się albo załóż konto” pod nagłówkiem). Login: 3–20 znaków, małe litery, cyfry oraz `_ . -`; wielkość liter przy wpisywaniu nie ma znaczenia. Hasło: co najmniej 6 znaków.
+- Supabase loguje e-mailem, więc login zamienia się na techniczny adres `login@gracze.para-buch.pl`. Na ten adres nic nie jest wysyłane, dlatego w projekcie Supabase musi być wyłączone „Confirm email”, a hasła nie da się odzyskać.
+- Profil (tabela `profiles`) powstaje razem z kontem (wyzwalacz w bazie) i przechowuje login. Pod nagłówkiem zalogowany gracz widzi swój login, liczbę wygranych i najlepszy wynik oraz link „Wyloguj”. Po wylogowaniu gra toczy się dalej jako nowy gość.
 
 ### 8.2. Zachowanie
 
-- Po każdym ruchu stan partii zapisuje się w tabeli `games` (jeden wiersz na gracza). Partia bez ruchów i partia wygrana kasują zapis.
+- Po każdym ruchu stan partii zapisuje się w tabeli `games` (jeden wiersz na gracza, gościa albo konto). Partia bez ruchów i partia wygrana kasują zapis.
 - Przy starcie, gdy w bazie jest przerwana partia z co najmniej jednym ruchem, gra pyta „Wznowić?”. „Wznów” przywraca ułożenie i licznik, „Zacznij od nowa” (albo „Nowa gra”) kasuje zapis.
-- Do czasu odpowiedzi na to pytanie gra nic nie zapisuje, żeby nie nadpisać przerwanej partii.
-- Po wygranej okno gratulacji ma pole na nick i przycisk „Zapisz wynik”. Wynik trafia do tabeli `scores`.
-- Pod tacą wyświetla się ranking 10 najlepszych wyników (najmniej ruchów, przy remisie wcześniejszy wynik wyżej).
+- Po zalogowaniu gra sprawdza partię zapisaną na koncie. Jeśli jest inna niż bieżąca, pyta „Wznowić?”; „Graj obecną” zostawia bieżącą partię i zapisuje ją na koncie. Jeśli na koncie nic nie ma, bieżąca partia gościa przechodzi na konto.
+- Do czasu odpowiedzi na pytanie o wznowienie gra nic nie zapisuje, żeby nie nadpisać przerwanej partii.
+- Po wygranej zalogowanego gracza wynik sam trafia do tabeli `scores`. Gość widzi w oknie gratulacji link „Zaloguj się, żeby zapisać wynik”; po zalogowaniu albo rejestracji wynik zapisuje się na koncie.
+- Pod tacą wyświetla się ranking 10 najlepszych wyników z loginami (najmniej ruchów, przy remisie wcześniejszy wynik wyżej).
 
 ### 8.3. Bezpieczeństwo
 
 - W kodzie strony jest tylko publiczny klucz `anon`/`publishable`. Klucza `service_role` nie wolno umieszczać w kodzie.
-- Reguły RLS: gracz czyta i zmienia tylko swoją partię; ranking czyta każdy, a dopisać wynik można tylko jako zalogowany gracz i tylko jako siebie.
-- Ograniczenia w bazie: nick ma 1–20 znaków, liczba ruchów mieści się w zakresie 15–500. Gra działa bez serwera, więc wyniku nie da się w pełni zweryfikować; to świadomy kompromis.
+- Reguły RLS: gracz czyta i zmienia tylko swoją partię; ranking i loginy czyta każdy; wynik dopisać może tylko gracz z kontem (nie gość) i tylko jako siebie; profil zakłada wyłącznie wyzwalacz w bazie.
+- Ograniczenia w bazie: login jest unikalny i ma format jak w 8.1, liczba ruchów mieści się w zakresie 15–500. Gra działa bez serwera, więc wyniku nie da się w pełni zweryfikować; to świadomy kompromis.
+- Hasła przechowuje Supabase Auth (hash); gra nie ma do nich dostępu.
