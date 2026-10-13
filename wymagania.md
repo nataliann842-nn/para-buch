@@ -1,4 +1,4 @@
-﻿# Para Buch!: wymagania
+# Para Buch!: wymagania
 
 Data: 2026-09-29
 
