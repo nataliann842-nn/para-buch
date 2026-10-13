@@ -1,4 +1,4 @@
-# Super Pamięć: wymagania
+# Para Buch!: wymagania
 
 Data: 2026-09-29
 
@@ -47,7 +47,7 @@ Kryterium sukcesu: gracz może rozegrać pełną partię od pierwszego kliknięc
 
 ## 4. Interfejs
 
-- Nagłówek z nazwą gry „Super Pamięć”.
+- Nagłówek z nazwą gry „Para Buch!”.
 - Pasek z licznikiem „Ruchy: N” i przyciskiem „Nowa gra”.
 - Plansza: siatka 6 × 5 kart (6 kolumn, 5 wierszy) jednakowej wielkości.
 - Karta zakryta ma jednolity rewers; karta odkryta pokazuje emoji; karta znaleziona jest wizualnie odróżniona (np. przygaszona lub z obramowaniem).

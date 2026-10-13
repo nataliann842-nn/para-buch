@@ -1,4 +1,4 @@
-# Super Pamięć: prompt na grafikę tła
+# Para Buch!: prompt na grafikę tła
 
 Data: 2026-10-13
 
@@ -7,7 +7,7 @@ Data: 2026-10-13
 Tło całej strony, za zieloną tacą z kartami (front z gałęzi `MarcinFront`).
 
 - Taca zajmuje około 730 px szerokości na środku ekranu i górne 2/3 wysokości, więc boki i dół są puste.
-- U góry pośrodku stoi ciemnofioletowy tytuł „Super Pamięć” i pasek „Ruchy / Nowa gra”, dlatego środek i górny pas tła muszą być jasne i spokojne.
+- U góry pośrodku stoi ciemnofioletowy tytuł „Para Buch!” i pasek „Ruchy / Nowa gra”, dlatego środek i górny pas tła muszą być jasne i spokojne.
 - Szczegóły grafiki trzymamy przy lewej i prawej krawędzi oraz w dolnych rogach.
 - Rewersu karty nie generujemy: jest już zrobiony w CSS (fiolet i złote kropki).
 
