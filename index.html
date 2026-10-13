@@ -335,11 +335,101 @@
       animation: pop 460ms cubic-bezier(0.2, 0.9, 0.3, 1.3);
     }
 
-    #win-text {
+    .panel-title {
+      max-width: 420px;
       font-size: 30px;
       font-weight: 800;
       line-height: 1.15;
       text-wrap: balance;
+    }
+
+    .panel-buttons {
+      display: flex;
+      gap: 14px;
+    }
+
+    button.action.secondary {
+      background: var(--paper);
+      box-shadow: 0 5px 0 var(--cardboard-dark), 0 0 0 2px var(--cardboard) inset;
+    }
+    button.action.secondary:hover { background: #fff6dd; }
+    button.action:disabled { opacity: 0.6; cursor: default; }
+
+    .score-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .score-form[hidden] { display: none; }
+
+    .score-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    #nick {
+      width: 190px;
+      font: inherit;
+      font-size: 17px;
+      color: var(--plum);
+      padding: 9px 12px;
+      border: 2px solid var(--cardboard);
+      border-radius: 10px;
+      background: #fff;
+    }
+    #nick:focus-visible {
+      outline: 3px solid var(--marigold);
+      outline-offset: 1px;
+    }
+
+    .score-status {
+      min-height: 1.2em;
+      color: var(--plum-soft);
+    }
+
+    .ranking {
+      width: var(--tray-w);
+      max-width: 100%;
+      margin-top: 56px;
+      padding: 18px 24px 20px;
+      border-radius: 16px;
+      background: rgba(255, 253, 247, 0.75);
+      box-shadow: 0 4px 0 var(--cardboard);
+    }
+    .ranking[hidden] { display: none; }
+
+    .ranking h2 {
+      margin: 0 0 10px;
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .ranking ol {
+      margin: 0;
+      padding-left: 28px;
+      columns: 2;
+      column-gap: 40px;
+      font-size: 17px;
+      font-weight: 500;
+    }
+
+    .ranking li {
+      padding: 3px 0;
+      break-inside: avoid;
+    }
+
+    .ranking .moves {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ranking .empty {
+      list-style: none;
+      margin-left: -28px;
+      color: var(--plum-soft);
     }
 
     @keyframes pop {
@@ -388,11 +478,33 @@
     </div>
     <div class="win" id="win" hidden>
       <div class="win-panel">
-        <span id="win-text"></span>
+        <span id="win-text" class="panel-title"></span>
+        <form class="score-form" id="score-form" hidden>
+          <label for="nick">Wpisz nick do rankingu</label>
+          <div class="score-row">
+            <input id="nick" maxlength="20" autocomplete="nickname" required>
+            <button type="submit" class="action" id="save-score">Zapisz wynik</button>
+          </div>
+          <span class="score-status" id="score-status" role="status"></span>
+        </form>
         <button type="button" class="action" id="play-again">Zagraj ponownie</button>
       </div>
     </div>
+    <div class="win" id="resume" hidden>
+      <div class="win-panel">
+        <span id="resume-text" class="panel-title"></span>
+        <div class="panel-buttons">
+          <button type="button" class="action" id="resume-yes">Wznów</button>
+          <button type="button" class="action secondary" id="resume-no">Zacznij od nowa</button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <section class="ranking" id="ranking" hidden>
+    <h2>Najlepsze wyniki</h2>
+    <ol id="ranking-list"></ol>
+  </section>
 
   <!-- Logika gry: czyste funkcje, bez DOM, window i timerów -->
   <script>
@@ -459,6 +571,137 @@
     function hideUnmatched(state) {
       return { ...state, revealed: [], locked: false };
     }
+
+    // Stan do zapisu: nietrafiona para jest od razu zakryta, żeby po wznowieniu nie wisiała blokada
+    function snapshot(state) {
+      const s = state.locked ? hideUnmatched(state) : state;
+      return {
+        cards: s.cards.map(c => ({ symbol: c.symbol, matched: c.matched })),
+        revealed: s.revealed.slice(),
+        moves: s.moves,
+        locked: false,
+        won: s.won
+      };
+    }
+
+    // Odtwarza stan z zapisu; zwraca null, gdy dane są uszkodzone albo partia jest skończona
+    function restoreGame(data) {
+      if (!data || !Array.isArray(data.cards) || data.cards.length !== PAIRS * 2) return null;
+      if (!Number.isInteger(data.moves) || data.moves < 0) return null;
+
+      const counts = {};
+      for (const c of data.cards) {
+        if (!c || typeof c.symbol !== 'string' || typeof c.matched !== 'boolean') return null;
+        counts[c.symbol] = (counts[c.symbol] || 0) + 1;
+      }
+      if (Object.values(counts).some(n => n !== 2)) return null;
+
+      const revealed = Array.isArray(data.revealed) ? data.revealed : [];
+      const revealedOk = revealed.length <= 1 && revealed.every(i =>
+        Number.isInteger(i) && i >= 0 && i < data.cards.length && !data.cards[i].matched);
+      if (!revealedOk) return null;
+
+      const cards = data.cards.map(c => ({ symbol: c.symbol, matched: c.matched }));
+      if (cards.every(c => c.matched)) return null;
+      return { cards, revealed: revealed.slice(), moves: data.moves, locked: false, won: false };
+    }
+
+    // Nick do rankingu: bez zbędnych spacji, najwyżej 20 znaków
+    function normalizeNick(raw) {
+      return String(raw ?? '').trim().replace(/\s+/g, ' ').slice(0, 20);
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Zapis w Supabase: przerwana partia i tabela wyników -->
+  <script>
+    // Klucz publishable jest publiczny z założenia; dostęp ograniczają reguły RLS (supabase/schema.sql)
+    const SUPABASE_URL = 'https://xylrrddyfqqctzujypqf.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_pzgajJoQ4zAjKv7o-ye0oA_aNbIkE3Z';
+    const TOP_SCORES = 10;
+
+    const store = (() => {
+      let client = null;
+      let userId = null;
+      let lastSynced;
+      let nextSave;
+      let hasNext = false;
+      let saving = false;
+
+      // Zwraca zapisaną partię (albo null); przy braku konfiguracji lub błędzie gra działa bez zapisu
+      async function init() {
+        if (!SUPABASE_URL || !SUPABASE_KEY || !window.supabase) return null;
+        try {
+          client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+          let { data: { session } } = await client.auth.getSession();
+          if (!session) {
+            const { data, error } = await client.auth.signInAnonymously();
+            if (error) throw error;
+            session = data.session;
+          }
+          userId = session.user.id;
+          const { data, error } = await client.from('games').select('state').maybeSingle();
+          if (error) throw error;
+          return data ? data.state : null;
+        } catch (e) {
+          console.warn('Supabase niedostępny, gra działa bez zapisu:', e.message || e);
+          client = null;
+          return null;
+        }
+      }
+
+      // Zapisuje partię albo ją kasuje (saved = null). W locie jest najwyżej jedno żądanie;
+      // stany, które przyszły w międzyczasie, zastępuje najnowszy, więc przy szybkim klikaniu nie rośnie kolejka
+      function sync(saved) {
+        if (!client) return;
+        const json = JSON.stringify(saved);
+        if (json === lastSynced) return;
+        lastSynced = json;
+        nextSave = saved;
+        hasNext = true;
+        if (!saving) flush();
+      }
+
+      async function flush() {
+        saving = true;
+        while (hasNext) {
+          const saved = nextSave;
+          hasNext = false;
+          const { error } = saved
+            ? await client.from('games').upsert({ user_id: userId, state: saved, updated_at: new Date().toISOString() })
+            : await client.from('games').delete().eq('user_id', userId);
+          if (error) console.warn('Nie udało się zapisać partii:', error.message);
+        }
+        saving = false;
+      }
+
+      async function submitScore(nick, moves) {
+        if (!client) return false;
+        const { error } = await client.from('scores').insert({ nick, moves });
+        if (error) console.warn('Nie udało się zapisać wyniku:', error.message);
+        return !error;
+      }
+
+      async function topScores() {
+        if (!client) return [];
+        const { data, error } = await client.from('scores')
+          .select('nick, moves')
+          .order('moves')
+          .order('created_at')
+          .limit(TOP_SCORES);
+        if (error) {
+          console.warn('Nie udało się pobrać rankingu:', error.message);
+          return [];
+        }
+        return data;
+      }
+
+      return {
+        init, sync, submitScore, topScores,
+        get enabled() { return client !== null; }
+      };
+    })();
   </script>
 
   <!-- Widok: rysowanie planszy i obsługa kliknięć -->
@@ -472,11 +715,24 @@
     const movesEl = document.getElementById('moves');
     const winEl = document.getElementById('win');
     const winTextEl = document.getElementById('win-text');
+    const scoreFormEl = document.getElementById('score-form');
+    const nickEl = document.getElementById('nick');
+    const saveScoreEl = document.getElementById('save-score');
+    const scoreStatusEl = document.getElementById('score-status');
+    const resumeEl = document.getElementById('resume');
+    const resumeTextEl = document.getElementById('resume-text');
+    const rankingEl = document.getElementById('ranking');
+    const rankingListEl = document.getElementById('ranking-list');
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const TEST_MODE = new URLSearchParams(location.search).has('test');
+    const NICK_KEY = 'para-buch-nick';
 
     let state;
     let hideTimer = null;
     let cardEls = [];
+    // Zapis startuje dopiero po decyzji o wznowieniu, żeby nie nadpisać przerwanej partii
+    let persistReady = false;
+    let pendingRestore = null;
 
     function buildBoard() {
       boardEl.innerHTML = '';
@@ -524,6 +780,13 @@
       movesEl.textContent = `Ruchy: ${state.moves}`;
       winTextEl.textContent = `Brawo! Ukończono w ${state.moves} ruchach`;
       winEl.hidden = !state.won;
+      scoreFormEl.hidden = !(state.won && store.enabled);
+    }
+
+    // Partia bez ruchów albo wygrana nie ma czego wznawiać, więc kasujemy zapis
+    function persist() {
+      if (!persistReady) return;
+      store.sync(state.won || state.moves === 0 ? null : snapshot(state));
     }
 
     function onCardClick(index) {
@@ -531,6 +794,7 @@
       if (next === state) return;
       state = next;
       render();
+      persist();
 
       if (state.locked) {
         hideTimer = setTimeout(() => {
@@ -541,12 +805,104 @@
       }
     }
 
-    function startGame() {
+    function showGame(newState) {
       clearTimeout(hideTimer);
       hideTimer = null;
-      state = newGame();
+      state = newState;
       buildBoard();
+      resetScoreForm();
       render();
+    }
+
+    function startGame() {
+      // „Nowa gra” w czasie pytania o wznowienie oznacza rezygnację z wznowienia
+      if (!resumeEl.hidden) {
+        resumeEl.hidden = true;
+        pendingRestore = null;
+        persistReady = true;
+      }
+      showGame(newGame());
+      persist();
+    }
+
+    function resetScoreForm() {
+      nickEl.disabled = false;
+      saveScoreEl.disabled = false;
+      scoreStatusEl.textContent = '';
+      try {
+        nickEl.value = localStorage.getItem(NICK_KEY) || '';
+      } catch (e) {
+        nickEl.value = '';
+      }
+    }
+
+    async function submitScore(event) {
+      event.preventDefault();
+      const nick = normalizeNick(nickEl.value);
+      if (!nick) return;
+      const moves = state.moves;
+      saveScoreEl.disabled = true;
+      scoreStatusEl.textContent = 'Zapisuję…';
+      if (await store.submitScore(nick, moves)) {
+        nickEl.disabled = true;
+        scoreStatusEl.textContent = 'Wynik zapisany!';
+        try { localStorage.setItem(NICK_KEY, nick); } catch (e) { /* zapamiętanie nicku jest tylko wygodą */ }
+        refreshRanking();
+      } else {
+        saveScoreEl.disabled = false;
+        scoreStatusEl.textContent = 'Nie udało się zapisać wyniku, spróbuj ponownie.';
+      }
+    }
+
+    // Ranking zaczyna się od 15 ruchów, więc forma „ruch” nie występuje
+    function movesWord(n) {
+      const lastTwo = n % 100;
+      return n % 10 >= 2 && n % 10 <= 4 && (lastTwo < 12 || lastTwo > 14) ? 'ruchy' : 'ruchów';
+    }
+
+    async function refreshRanking() {
+      const rows = await store.topScores();
+      const items = rows.map(row => {
+        const li = document.createElement('li');
+        li.textContent = `${row.nick}: `;
+        const moves = document.createElement('span');
+        moves.className = 'moves';
+        moves.textContent = `${row.moves} ${movesWord(row.moves)}`;
+        li.appendChild(moves);
+        return li;
+      });
+      if (items.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'empty';
+        li.textContent = 'Brak wyników. Wygraj i zajmij pierwsze miejsce!';
+        items.push(li);
+      }
+      rankingListEl.replaceChildren(...items);
+      rankingEl.hidden = false;
+    }
+
+    function onStoreReady(saved) {
+      if (!store.enabled) return;
+      refreshRanking();
+      const restored = restoreGame(saved);
+      if (restored && restored.moves > 0) {
+        pendingRestore = restored;
+        const pairs = restored.cards.filter(c => c.matched).length / 2;
+        resumeTextEl.textContent =
+          `Masz przerwaną grę (ruchy: ${restored.moves}, pary: ${pairs} z ${PAIRS}). Wznowić?`;
+        resumeEl.hidden = false;
+      } else {
+        persistReady = true;
+        persist();
+      }
+    }
+
+    function answerResume(resume) {
+      resumeEl.hidden = true;
+      if (resume && pendingRestore) showGame(pendingRestore);
+      pendingRestore = null;
+      persistReady = true;
+      persist();
     }
 
     // Taca wychyla się lekko za kursorem
@@ -568,8 +924,12 @@
     sceneEl.addEventListener('pointerleave', resetTilt);
     document.getElementById('new-game').addEventListener('click', startGame);
     document.getElementById('play-again').addEventListener('click', startGame);
+    document.getElementById('resume-yes').addEventListener('click', () => answerResume(true));
+    document.getElementById('resume-no').addEventListener('click', () => answerResume(false));
+    scoreFormEl.addEventListener('submit', submitScore);
 
-    startGame();
+    showGame(newGame());
+    if (!TEST_MODE) store.init().then(onStoreReady);
   </script>
 
   <!-- Testy: uruchamiane tylko z parametrem ?test -->
@@ -698,6 +1058,53 @@
             flipCard(input, index);
             assert(JSON.stringify(input) === snapshot, `stan wejściowy zmieniony (karta ${index})`);
           });
+        }],
+
+        ['snapshot zakrywa nietrafioną parę i zdejmuje blokadę, nie zmieniając stanu wejściowego', () => {
+          const locked = flipCard(flipCard(orderedState(), 0), 2);
+          const before = JSON.stringify(locked);
+          const saved = snapshot(locked);
+          assert(saved.revealed.length === 0 && saved.locked === false, 'para nie została zakryta');
+          assert(saved.moves === 1, `moves = ${saved.moves}`);
+          assert(JSON.stringify(locked) === before, 'stan wejściowy zmieniony');
+        }],
+
+        ['restoreGame odtwarza zapisaną partię', () => {
+          const played = flipCard(flipCard(flipCard(orderedState(), 0), 1), 2);
+          const restored = restoreGame(JSON.parse(JSON.stringify(snapshot(played))));
+          assert(restored !== null, 'zapis odrzucony');
+          assert(restored.moves === 1, `moves = ${restored.moves}`);
+          assert(restored.cards[0].matched && restored.cards[1].matched, 'zgubiono znalezioną parę');
+          assert(restored.revealed.length === 1 && restored.revealed[0] === 2, 'zgubiono odkrytą kartę');
+          assert(!restored.locked && !restored.won, 'zły stan blokady lub wygranej');
+          const next = flipCard(restored, 3);
+          assert(next.cards[3].matched && next.moves === 2, 'po wznowieniu gra nie toczy się dalej');
+        }],
+
+        ['restoreGame odrzuca uszkodzone dane i skończoną partię', () => {
+          const good = snapshot(orderedState());
+          const broken = [
+            null,
+            'tekst',
+            { ...good, cards: good.cards.slice(0, 28) },
+            { ...good, cards: good.cards.map((c, i) => i === 0 ? { ...c, symbol: 'X' } : c) },
+            { ...good, moves: -1 },
+            { ...good, moves: 1.5 },
+            { ...good, revealed: [0, 1] },
+            { ...good, revealed: [99] }
+          ];
+          broken.forEach((data, i) => assert(restoreGame(data) === null, `przypadek ${i} nie został odrzucony`));
+
+          let won = orderedState();
+          for (let i = 0; i < 30; i += 2) won = flipCard(flipCard(won, i), i + 1);
+          assert(restoreGame(snapshot(won)) === null, 'wygrana partia nie powinna być wznawiana');
+        }],
+
+        ['normalizeNick przycina spacje i długość', () => {
+          assert(normalizeNick('  Ala   ma  kota ') === 'Ala ma kota', 'spacje nie zostały poprawione');
+          assert(normalizeNick('x'.repeat(30)).length === 20, 'nick nie został skrócony');
+          assert(normalizeNick('   ') === '', 'pusty nick powinien dać pusty tekst');
+          assert(normalizeNick(undefined) === '', 'brak nicku powinien dać pusty tekst');
         }]
       ];
 

@@ -19,12 +19,14 @@ Kryterium sukcesu: gracz może rozegrać pełną partię od pierwszego kliknięc
 - Animacja odwracania karty.
 - Przycisk „Nowa gra” i komunikat o wygranej.
 - Testy logiki uruchamiane w przeglądarce.
+- Zapis w bazie Supabase (sekcja 8): wspólny ranking 10 najlepszych wyników z nickiem oraz wznawianie przerwanej partii.
 
 ### 2.2. Poza zakresem
 
 - Poziomy trudności i zmiana rozmiaru planszy.
 - Stoper i pomiar czasu.
-- Rekordy i zapis wyników (`localStorage`).
+- Konta graczy z logowaniem (gracz jest anonimowy, wznawianie działa w tej samej przeglądarce).
+- Ochrona rankingu przed fałszywymi wynikami poza regułami w bazie (sekcja 8.3).
 - Tryb dwóch graczy.
 - Tryb ciemny.
 - Projektowanie pod telefon (responsywność).
@@ -59,12 +61,15 @@ Kryterium sukcesu: gracz może rozegrać pełną partię od pierwszego kliknięc
 
 ### 5.1. Plik
 
-Cała gra mieści się w jednym pliku `index.html`, otwieranym dwuklikiem, bez serwera, bundlera ani instalacji zależności. Plik zawiera:
+Cała gra mieści się w jednym pliku `index.html`, otwieranym dwuklikiem, bez serwera, bundlera ani instalacji zależności. Jedyna zewnętrzna zależność to biblioteka `supabase-js` z CDN (jsDelivr). Plik zawiera:
 
 1. `<style>`: wygląd i animacja.
 2. `<script>` z logiką gry: czyste funkcje, bez żadnych odwołań do DOM, `window` ani timerów.
-3. `<script>` z widokiem: rysowanie planszy na podstawie stanu, obsługa kliknięć, `setTimeout` na 1 sekundę po nietrafionej parze.
-4. `<script>` z testami: uruchamiany tylko przy adresie z parametrem `?test`.
+3. `<script>` z zapisem w Supabase (obiekt `store`): logowanie anonimowe, zapis partii, ranking.
+4. `<script>` z widokiem: rysowanie planszy na podstawie stanu, obsługa kliknięć, `setTimeout` na 1 sekundę po nietrafionej parze.
+5. `<script>` z testami: uruchamiany tylko przy adresie z parametrem `?test`.
+
+Schemat bazy (tabele i reguły dostępu) jest w pliku `supabase/schema.sql`.
 
 ### 5.2. Stan gry
 
@@ -86,6 +91,9 @@ Stan jest jednym obiektem, np.:
 - `newGame(random)`: zwraca stan początkowy z nową talią.
 - `flipCard(state, index)`: zwraca nowy stan po kliknięciu karty. Nie zmienia stanu wejściowego. Ignoruje kliknięcie, gdy `locked` jest `true`, gdy karta jest znaleziona lub już odkryta, albo gdy gra jest wygrana. Przy drugiej odkrytej karcie zwiększa `moves`, a następnie oznacza parę jako znalezioną albo ustawia `locked: true`. Ustawia `won: true` po ostatniej parze.
 - `hideUnmatched(state)`: zakrywa niesparowane odkryte karty i zdejmuje blokadę. Warstwa widoku wywołuje ją po 1 sekundzie.
+- `snapshot(state)`: zwraca kopię stanu do zapisu w bazie; nietrafiona para jest w niej już zakryta, a blokada zdjęta.
+- `restoreGame(data)`: odtwarza stan z zapisu. Zwraca `null`, gdy dane są uszkodzone (zła liczba kart, symbol nie występuje dokładnie dwa razy, błędne `moves` lub `revealed`) albo partia jest wygrana.
+- `normalizeNick(raw)`: przycina spacje na brzegach, skleja wielokrotne spacje i skraca nick do 20 znaków.
 
 Widok nie zmienia stanu inaczej niż przez te funkcje.
 
@@ -106,6 +114,12 @@ Minimalny zestaw przypadków:
 9. `hideUnmatched` zakrywa obie karty i zdejmuje blokadę.
 10. Znalezienie wszystkich 15 par ustawia `won: true`.
 11. `flipCard` nie modyfikuje przekazanego obiektu stanu.
+12. `snapshot` zakrywa nietrafioną parę, zdejmuje blokadę i nie zmienia stanu wejściowego.
+13. `restoreGame` odtwarza zapisaną partię, a gra toczy się po niej dalej.
+14. `restoreGame` odrzuca uszkodzone dane i wygraną partię.
+15. `normalizeNick` poprawia spacje i długość nicku.
+
+Testy nie łączą się z bazą; przy `?test` zapis w Supabase jest wyłączony.
 
 ## 7. Kryteria akceptacji
 
@@ -115,3 +129,26 @@ Minimalny zestaw przypadków:
 - „Nowa gra” w trakcie partii daje nowe ułożenie i zeruje licznik.
 - `index.html?test` pokazuje wszystkie testy jako zaliczone.
 - W konsoli przy zwykłej grze nie ma błędów.
+- Po wygranej i zapisaniu nicku wynik pojawia się w rankingu.
+- Zamknięcie karty w trakcie partii i ponowne otwarcie gry w tej samej przeglądarce proponuje wznowienie z tym samym ułożeniem i liczbą ruchów.
+- Bez dostępu do bazy (brak konfiguracji, brak sieci, uśpiony projekt) gra działa jak dotąd, tylko bez rankingu i wznawiania.
+
+## 8. Zapis w bazie (Supabase)
+
+### 8.1. Gracz
+
+Przy pierwszym wejściu gra loguje gracza anonimowo w Supabase. Sesja zostaje w przeglądarce, więc wznawianie działa na tym samym urządzeniu i w tej samej przeglądarce. Nick podaje się dopiero przy zapisie wyniku i jest zapamiętywany w `localStorage` jako podpowiedź na następny raz.
+
+### 8.2. Zachowanie
+
+- Po każdym ruchu stan partii zapisuje się w tabeli `games` (jeden wiersz na gracza). Partia bez ruchów i partia wygrana kasują zapis.
+- Przy starcie, gdy w bazie jest przerwana partia z co najmniej jednym ruchem, gra pyta „Wznowić?”. „Wznów” przywraca ułożenie i licznik, „Zacznij od nowa” (albo „Nowa gra”) kasuje zapis.
+- Do czasu odpowiedzi na to pytanie gra nic nie zapisuje, żeby nie nadpisać przerwanej partii.
+- Po wygranej okno gratulacji ma pole na nick i przycisk „Zapisz wynik”. Wynik trafia do tabeli `scores`.
+- Pod tacą wyświetla się ranking 10 najlepszych wyników (najmniej ruchów, przy remisie wcześniejszy wynik wyżej).
+
+### 8.3. Bezpieczeństwo
+
+- W kodzie strony jest tylko publiczny klucz `anon`/`publishable`. Klucza `service_role` nie wolno umieszczać w kodzie.
+- Reguły RLS: gracz czyta i zmienia tylko swoją partię; ranking czyta każdy, a dopisać wynik można tylko jako zalogowany gracz i tylko jako siebie.
+- Ograniczenia w bazie: nick ma 1–20 znaków, liczba ruchów mieści się w zakresie 15–500. Gra działa bez serwera, więc wyniku nie da się w pełni zweryfikować; to świadomy kompromis.
